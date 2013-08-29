@@ -7,7 +7,8 @@ import sqlite3
 import os
 import pymongo
 
-IPINFODBKEY = '58cf0e1cd74e0b7b11c6ed72f5d3ef7781262cba1f8f8e6533bdab9ecaf1683b'
+with open('ipinfodbkey','r') as f:
+    IPINFODBKEY = f.read()
 IP_DB='BT_IPs.db'
 TRANSMISSION_IP='192.168.2.251'
 
