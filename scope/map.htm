@@ -1,0 +1,153 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+    <meta content="text/html" charset="utf-8" http-equiv="Content-Type">
+    <script type="text/javascript" src="jquery-1.8.1.min.js"></script>
+    <script type="text/javascript" src="jquery.timer.js"></script>
+	<link rel="stylesheet" href="map.css" />
+    <script type="text/javascript">
+        var winx;
+        var winy;
+        var offsetx;
+        var offsety;
+        var mapratio = 1652/1250;
+        
+        function updateOffsets() {
+            
+            offsetx = winx/winy >= mapratio ? (winx-(winy*mapratio))/2 : 0;
+            offsety = winx/winy >= mapratio ? 0: (winy-(winx/mapratio))/2;
+        }
+        
+        function output(message) {
+			$('#output').text(message);
+		}
+        
+        function drawIP(ip, p, l) {
+            var x = (l/360*(winx-2*offsetx))*0.98+(winx-2*offsetx)/2-(ip.width()/2);
+            var y = (Math.log(Math.tan((Math.PI/4)- 0.16 + (p*Math.PI/360)))/5*-(winy-2*offsety))+((winy-2*offsety)/2)-(ip.height()/2);
+            ip.css('top',Math.round(y+offsety)+'px');
+            ip.css('left',Math.round(x+offsetx)+'px');
+        }
+        
+        function drawLine(line, ip1, ip2) {
+            var x1 = parseFloat(ip1.css('left'))+parseFloat(ip1.css('width'))/2;
+            var y1 = parseFloat(ip1.css('top'))+parseFloat(ip1.css('height'))/2;
+            var x2 = parseFloat(ip2.css('left'))+parseFloat(ip2.css('width'))/2;
+            var y2 = parseFloat(ip2.css('top'))+parseFloat(ip1.css('height'))/2;
+            var w = Math.round(Math.sqrt(Math.pow(x2-x1,2)+Math.pow(y2-y1,2)));
+            var h = 1;
+            var t = Math.round((y2-y1)/2+y1-h/2);
+            var l = Math.round((x2-x1)/2+x1-w/2);
+            var alpha=0;
+            if (x2-x1==0) {
+                if (y2-y1==0) {
+                    alpha = 0;
+                }
+                else {
+                    alpha = 90;
+                }
+            }
+            else {
+                if (y2-y1==0) {
+                    alpha = 0;
+                }
+                else {
+                    alpha = Math.round(180/Math.PI * Math.atan((y2-y1)/(x2-x1)));
+                }
+            }
+            line.css('width',w+'px');
+            line.css('height',h+'px');
+            line.css('top',t+'px');
+            line.css('left',l+'px');
+            line.css('transform', 'rotate('+alpha+'deg)');
+            line.css('-ms-transform', 'rotate('+alpha+'deg)');
+            line.css('-moz-transform', 'rotate(' + alpha + 'deg)');
+            line.css('-webkit-transform', 'rotate('+alpha+'deg)');
+            line.css('-o-transform', 'rotate('+alpha+'deg)');
+        }
+        
+        function drawObjects() {
+            $.ajax({
+				url: "/aip",
+				type: "get",
+				dataType: "json",
+				success: function(data) {
+                    var $me = $("<div class=\"ip myip\"></div>");
+                    drawIP($me,data.myIP.latitude,data.myIP.longitude);
+                    $('#ips').append($me);
+					jQuery.each(data.activeIPs, function(index) { // access current object (in iteration) using this
+                        if (this.countryCode != "-") {
+                            var $newItem = $("<div class=\"ip activeip\"></div>");
+                            drawIP($newItem,this.latitude,this.longitude);
+                            $('.myip').remove();
+                            $('#ips').append($me);
+                            jQuery.each(this.hops, function(index) {
+                                if (this.countryCode != "-") {
+                                    var $newIP = $("<div class=\"ip hopip\"></div>");
+                                    drawIP($newIP,this.latitude,this.longitude);
+                                    var $newLine = $("<div class=\"connection\"></div>");
+                                    drawLine($newLine,$newIP,$('.ip').last());
+                                    $('#ips').append($newIP);
+                                    $('#links').append($newLine);
+                                }
+                            });
+                            var $newLine = $("<div class=\"connection\"></div>");
+                            drawLine($newLine,$newItem,$('.ip').last());
+                            $('#ips').append($newItem);
+                            $('#links').append($newLine);
+                        }
+                        
+                    });
+                }
+            });
+        }
+        
+        function drawIIPs() {
+            $.ajax({
+				url: "/iip",
+				type: "get",
+				dataType: "json",
+				success: function(data) {
+					jQuery.each(data.inactiveIPs, function(index) { // access current object (in iteration) using this
+                        if (this.countryCode != "-") {
+                            var $newItem = $("<div class=\"ip inactiveip\"></div>");
+                            drawIP($newItem,this.latitude,this.longitude);
+                        }
+                        
+                    });
+                }
+            });
+        }
+        
+        var timer = $.timer(function() {
+                $(document).resize();
+        });
+
+        
+        $(document).ready(function() {
+             timer.set({ time : 30000, autostart : true });
+            winx = $(window).width();
+            winy = $(window).height();
+            updateOffsets();
+            $('#ips').empty();
+            $('#links').empty();
+            drawObjects();
+        });
+        $(window).resize(function() {
+            winx = $(window).width();
+            winy = $(window).height();
+            updateOffsets();
+            $('#ips').empty();
+            $('#links').empty();
+            drawObjects();
+        });
+    </script>
+	<head>
+		<title>Connected Machines</title>
+	</head>
+	<body>
+		<div id="output"></div>
+        <div id= "ips"></div>
+        <div id= "links"></div>
+	</body>
+</html>
